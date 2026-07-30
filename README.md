@@ -1,5 +1,13 @@
 # Icevue
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/icevue-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/icevue-logo-light.svg">
+    <img alt="Icevue - Iceberg Catalog Explorer" src="docs/icevue-logo-light.svg" width="560">
+  </picture>
+</p>
+
 [![CI](https://github.com/norrishuang/Icevue/actions/workflows/ci.yml/badge.svg)](https://github.com/norrishuang/Icevue/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2f81f7.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg?logo=python&logoColor=white)](https://www.python.org/)
