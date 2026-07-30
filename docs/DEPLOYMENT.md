@@ -97,6 +97,47 @@ Docker, pass the standard `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and
 optional `AWS_SESSION_TOKEN` variables, or mount an AWS profile into
 `/home/icevue/.aws`.
 
+## AWS Glue Data Catalog
+
+Create a REST Catalog connection with:
+
+```yaml
+id: glue-prod
+name: AWS Glue Production
+type: rest
+uri: https://glue.us-east-1.amazonaws.com/iceberg
+warehouse: "123456789012"
+properties:
+  rest.sigv4-enabled: "true"
+  rest.signing-name: glue
+  rest.signing-region: us-east-1
+```
+
+Use the AWS account ID as the warehouse value. Keep the endpoint region and
+`rest.signing-region` consistent with the Glue Data Catalog region. Leave the
+Icevue Prefix, bearer token, OAuth2, and client credential fields empty.
+
+Icevue keeps Glue databases visible but lists only tables whose Glue metadata
+identifies them as Iceberg. Parquet, Delta, Hudi, and other table formats are
+excluded. Databases that disappear during discovery or resolve to missing
+resource links do not prevent the rest of the Catalog from loading.
+
+The runtime IAM identity needs Glue metadata permissions such as:
+
+```text
+glue:GetDatabase
+glue:GetDatabases
+glue:GetTable
+glue:GetTables
+glue:GetTableVersion
+glue:GetTableVersions
+```
+
+Reading Iceberg metadata, manifests, and partition information also requires
+`s3:ListBucket` and `s3:GetObject` on the table storage locations. Tables
+governed by AWS Lake Formation require the corresponding `DESCRIBE` and
+`SELECT` grants.
+
 ## Production checklist
 
 1. Use a read-only Catalog identity.

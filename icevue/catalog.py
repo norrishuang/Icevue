@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
 
+import boto3
+from botocore.exceptions import ClientError
 from pyiceberg.catalog import load_catalog
-from pyiceberg.exceptions import BadRequestError, NoSuchNamespaceError, NoSuchTableError
+from pyiceberg.exceptions import (
+    BadRequestError,
+    NoSuchNamespaceError,
+    NoSuchTableError,
+    RESTError,
+)
 from pyiceberg.table import Table
 
 from icevue.config import Settings
@@ -29,6 +37,8 @@ from icevue.models import (
     TableDetail,
     TableRef,
 )
+
+_FLAT_NAMESPACE_SIGNING_NAMES = frozenset({"glue", "s3tables"})
 
 
 def _iso(timestamp_ms: int | None) -> str | None:
@@ -79,9 +89,63 @@ class IcebergCatalogService:
         self.settings = settings
         self.display_name = display_name or settings.catalog_name
         self.catalog = load_catalog(settings.catalog_name, **properties)
+        self.signing_name = str(properties.get("rest.signing-name", "")).lower()
         self.supports_nested_namespaces = (
-            str(properties.get("rest.signing-name", "")).lower() != "s3tables"
+            self.signing_name not in _FLAT_NAMESPACE_SIGNING_NAMES
         )
+        self.glue_client = None
+        if self.signing_name == "glue":
+            self.glue_client = boto3.client(
+                "glue",
+                region_name=properties.get("rest.signing-region"),
+            )
+
+    @staticmethod
+    def _is_missing_namespace_error(exc: Exception) -> bool:
+        return isinstance(exc, NoSuchNamespaceError) or (
+            isinstance(exc, RESTError) and "EntityNotFoundException" in str(exc)
+        )
+
+    @staticmethod
+    def _is_iceberg_glue_table(table: dict[str, Any]) -> bool:
+        parameters = table.get("Parameters") or {}
+        table_type = str(parameters.get("table_type", "")).upper()
+        return table_type == "ICEBERG" or bool(parameters.get("metadata_location"))
+
+    def _list_glue_tables(self, namespace: tuple[str, ...]) -> list[tuple[str, ...]]:
+        if self.glue_client is None:
+            return []
+
+        request = {"DatabaseName": ".".join(namespace)}
+        if self.settings.catalog_warehouse:
+            request["CatalogId"] = self.settings.catalog_warehouse
+
+        tables = []
+        try:
+            paginator = self.glue_client.get_paginator("get_tables")
+            for page in paginator.paginate(**request):
+                tables.extend(
+                    (*namespace, table["Name"])
+                    for table in page.get("TableList", [])
+                    if self._is_iceberg_glue_table(table)
+                )
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") != "EntityNotFoundException":
+                raise
+        return tables
+
+    def _list_tables(self, namespace: tuple[str, ...]) -> list[tuple[str, ...]]:
+        if getattr(self, "signing_name", "") == "glue":
+            return self._list_glue_tables(namespace)
+        return [tuple(identifier) for identifier in self.catalog.list_tables(namespace)]
+
+    def _safe_list_tables(self, namespace: tuple[str, ...]) -> list[tuple[str, ...]]:
+        try:
+            return self._list_tables(namespace)
+        except Exception as exc:
+            if not self._is_missing_namespace_error(exc):
+                raise
+            return []
 
     def _list_all_namespaces(self) -> list[tuple[str, ...]]:
         pending = [tuple(namespace) for namespace in self.catalog.list_namespaces()]
@@ -102,7 +166,6 @@ class IcebergCatalogService:
             try:
                 children = self.catalog.list_namespaces(namespace)
             except (BadRequestError, NoSuchNamespaceError):
-                # S3 Tables supports only single-level namespaces.
                 children = []
             for child in children:
                 child_tuple = tuple(child)
@@ -119,10 +182,17 @@ class IcebergCatalogService:
     def tree(self) -> CatalogTree:
         try:
             namespaces = self._list_all_namespaces()
+            if getattr(self, "signing_name", "") == "glue" and namespaces:
+                worker_count = min(8, len(namespaces))
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    table_lists = list(executor.map(self._safe_list_tables, namespaces))
+            else:
+                table_lists = [self._safe_list_tables(namespace) for namespace in namespaces]
+
             nodes = []
-            for namespace in namespaces:
+            for namespace, identifiers in zip(namespaces, table_lists, strict=True):
                 tables = sorted(
-                    self.catalog.list_tables(namespace),
+                    identifiers,
                     key=lambda item: item[-1].lower(),
                 )
                 nodes.append(

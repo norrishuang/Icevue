@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 import httpx
+import pytest
 import yaml
 from fastapi import FastAPI
 
@@ -136,32 +137,110 @@ def test_catalog_tree_recursively_lists_nested_namespaces() -> None:
     assert tree.namespaces[1].tables[0].name == "order_events"
 
 
-def test_s3_tables_catalog_does_not_probe_nested_namespaces() -> None:
-    class S3TablesCatalog:
+@pytest.mark.parametrize("signing_name", ["glue", "s3tables"])
+def test_aws_catalog_does_not_probe_nested_namespaces(
+    monkeypatch: pytest.MonkeyPatch,
+    signing_name: str,
+) -> None:
+    class FlatCatalog:
         def list_namespaces(
             self, namespace: tuple[str, ...] = ()
         ) -> list[tuple[str, ...]]:
             if namespace:
-                raise AssertionError("S3 Tables must not receive a parent namespace")
+                raise AssertionError("AWS catalogs must not receive a parent namespace")
             return [("analytics",), ("commerce",)]
 
         def list_tables(self, namespace: tuple[str, ...]) -> list[tuple[str, ...]]:
             return [(*namespace, "events")]
 
-    service = IcebergCatalogService.__new__(IcebergCatalogService)
-    service.settings = replace(
+    monkeypatch.setattr("icevue.catalog.load_catalog", lambda *args, **kwargs: FlatCatalog())
+    if signing_name == "glue":
+        monkeypatch.setattr(
+            "icevue.catalog.boto3.client",
+            lambda *args, **kwargs: GlueClient(
+                [
+                    {
+                        "Name": "events",
+                        "Parameters": {
+                            "table_type": "ICEBERG",
+                            "metadata_location": "s3://warehouse/events/metadata.json",
+                        },
+                    }
+                ]
+            ),
+        )
+    settings = replace(
         get_settings(),
         demo_mode=False,
-        catalog_name="s3tables",
-        catalog_uri="https://s3tables.us-east-1.amazonaws.com/iceberg",
+        catalog_name=signing_name,
+        catalog_uri=f"https://{signing_name}.us-east-1.amazonaws.com/iceberg",
+        catalog_properties={"rest.signing-name": signing_name},
     )
-    service.catalog = S3TablesCatalog()
-    service.supports_nested_namespaces = False
+    service = IcebergCatalogService(settings)
 
     tree = service.tree()
 
     assert [node.namespace for node in tree.namespaces] == ["analytics", "commerce"]
     assert [node.tables[0].name for node in tree.namespaces] == ["events", "events"]
+
+
+class GluePaginator:
+    def __init__(self, tables: list[dict[str, Any]]):
+        self.tables = tables
+
+    def paginate(self, **kwargs: Any) -> list[dict[str, Any]]:
+        del kwargs
+        return [{"TableList": self.tables}]
+
+
+class GlueClient:
+    def __init__(self, tables: list[dict[str, Any]]):
+        self.tables = tables
+
+    def get_paginator(self, operation: str) -> GluePaginator:
+        assert operation == "get_tables"
+        return GluePaginator(self.tables)
+
+
+def test_glue_catalog_filters_non_iceberg_tables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class GlueRestCatalog:
+        def list_namespaces(self) -> list[tuple[str, ...]]:
+            return [("mixed",)]
+
+    tables = [
+        {
+            "Name": "iceberg_events",
+            "Parameters": {
+                "table_type": "ICEBERG",
+                "metadata_location": "s3://warehouse/events/metadata.json",
+            },
+        },
+        {"Name": "parquet_events", "Parameters": {"classification": "parquet"}},
+        {"Name": "delta_events", "Parameters": {"table_type": "delta"}},
+    ]
+    monkeypatch.setattr(
+        "icevue.catalog.load_catalog", lambda *args, **kwargs: GlueRestCatalog()
+    )
+    monkeypatch.setattr(
+        "icevue.catalog.boto3.client", lambda *args, **kwargs: GlueClient(tables)
+    )
+    settings = replace(
+        get_settings(),
+        demo_mode=False,
+        catalog_name="glue",
+        catalog_uri="https://glue.us-east-1.amazonaws.com/iceberg",
+        catalog_warehouse="123456789012",
+        catalog_properties={
+            "rest.signing-name": "glue",
+            "rest.signing-region": "us-east-1",
+        },
+    )
+
+    tree = IcebergCatalogService(settings).tree()
+
+    assert [table.name for table in tree.namespaces[0].tables] == ["iceberg_events"]
 
 
 def test_catalog_configuration_crud_persists_and_redacts_secrets() -> None:

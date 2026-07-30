@@ -1,5 +1,11 @@
 # Icevue
 
+[![CI](https://github.com/norrishuang/Icevue/actions/workflows/ci.yml/badge.svg)](https://github.com/norrishuang/Icevue/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2f81f7.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![PyIceberg 0.9-0.10](https://img.shields.io/badge/PyIceberg-0.9--0.10-5b8def.svg)](https://py.iceberg.apache.org/)
+[![Docker ready](https://img.shields.io/badge/Docker-ready-2496ed.svg?logo=docker&logoColor=white)](docs/DEPLOYMENT.md)
+
 Icevue is a lightweight, read-only web interface for exploring Apache Iceberg
 REST catalogs. It makes namespaces, tables, schemas, partition metadata,
 snapshots, sort orders, references, and table properties available in one
