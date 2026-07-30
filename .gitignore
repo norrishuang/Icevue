@@ -1,0 +1,14 @@
+.env
+config/catalogs.yaml
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+
+frontend/node_modules/
+frontend/dist/
+
+.DS_Store
+coverage/
+

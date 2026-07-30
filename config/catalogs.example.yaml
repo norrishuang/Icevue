@@ -1,0 +1,13 @@
+version: 1
+default_catalog: demo
+catalogs:
+  - id: demo
+    name: Demo
+    type: demo
+  - id: production
+    name: Production
+    type: rest
+    uri: http://iceberg-rest:8181
+    warehouse: s3://my-warehouse/
+    properties:
+      s3.region: us-east-1

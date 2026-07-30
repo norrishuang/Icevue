@@ -1,0 +1,17 @@
+services:
+  icevue:
+    build: .
+    image: icevue:0.1.0
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ICEVUE_DEMO_MODE: "${ICEVUE_DEMO_MODE:-true}"
+    volumes:
+      - icevue-config:/app/config
+    restart: unless-stopped
+
+volumes:
+  icevue-config:
