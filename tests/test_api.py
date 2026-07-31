@@ -75,6 +75,10 @@ def test_table_detail_contains_rich_metadata() -> None:
     assert payload["snapshots"][1]["operation"] == "replace"
     assert payload["snapshots"][1]["summary"]["deleted-data-files"] == "57"
     assert payload["snapshots"][1]["summary"]["total-data-files"] == "599"
+    assert (
+        payload["snapshots"][1]["summary"]["added-records"]
+        == payload["snapshots"][1]["summary"]["deleted-records"]
+    )
     assert payload["properties"]["write.parquet.compression-codec"] == "zstd"
 
 

@@ -62,12 +62,18 @@ export function SnapshotsTab({ table }: { table: TableDetail }) {
                 <small>Total files</small>
                 <strong>{formatNumber(snapshot.summary["total-data-files"])}</strong>
               </span>
-              <span className="snapshot-stat--added">
-                <small>Added records</small>
+              <span
+                className="snapshot-stat--added"
+                title="Records contained in data files added by this snapshot"
+              >
+                <small>Rows in added files</small>
                 <strong>{formatNumber(snapshot.summary["added-records"])}</strong>
               </span>
-              <span className="snapshot-stat--removed">
-                <small>Deleted records</small>
+              <span
+                className="snapshot-stat--removed"
+                title="Records contained in data files removed by this snapshot"
+              >
+                <small>Rows in removed files</small>
                 <strong>{formatNumber(snapshot.summary["deleted-records"])}</strong>
               </span>
               <span>

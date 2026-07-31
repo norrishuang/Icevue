@@ -122,7 +122,7 @@ class DemoCatalogService:
             else []
         )
         added_data_files = (24, 8, 26)
-        added_records = (1_420_000, 0, 1_588_000)
+        added_records = (1_420_000, 84_392_821, 1_588_000)
         total_data_files = (648, 599, 625)
         total_records = (84_392_821, 84_392_821, 85_980_821)
         total_file_sizes = (14_683_920_144, 14_120_640_000, 14_339_060_000)
@@ -144,7 +144,7 @@ class DemoCatalogService:
                     **(
                         {
                             "deleted-data-files": "57",
-                            "deleted-records": "0",
+                            "deleted-records": "84392821",
                         }
                         if index == 1
                         else {}
