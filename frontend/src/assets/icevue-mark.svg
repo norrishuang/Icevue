@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 170" role="img" aria-labelledby="title">
+  <title id="title">Icevue</title>
+  <path d="M80 9 139 72H21L80 9Z" fill="#dffafb"/>
+  <path d="m80 9 15 63H54L80 9Z" fill="#8ae7e9"/>
+  <path d="m80 9 59 63H95L80 9Z" fill="#3bd6db"/>
+  <path d="m21 72 18-19 15 19 14-21 27 21 12-16 32 16H21Z" fill="#f5feff"/>
+  <path d="M17 80h126" stroke="#3bd6db" stroke-width="6" stroke-linecap="round"/>
+  <path d="m27 91 106 0-8 20H35L27 91Z" fill="#287d85"/>
+  <path d="m38 117 84 0-9 19H47l-9-19Z" fill="#1b5f68"/>
+  <path d="m51 142 58 0-29 18-29-18Z" fill="#123f48"/>
+  <path d="M35 111h90M47 136h66" stroke="#67db9b" stroke-width="3" stroke-linecap="round"/>
+</svg>

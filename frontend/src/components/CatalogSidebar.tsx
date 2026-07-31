@@ -79,10 +79,6 @@ export function CatalogSidebar({
         <header className="sidebar__header">
           <div className="brand">
             <BrandMark />
-            <div>
-              <strong>Icevue</strong>
-              <span>Metadata explorer</span>
-            </div>
           </div>
           <button className="icon-button sidebar__close" onClick={onClose} title="Close catalog">
             <PanelLeftClose size={18} />

@@ -14,6 +14,7 @@ import {
 import { getCatalog, getCatalogs, getTable } from "./api";
 import { CatalogManager } from "./components/CatalogManager";
 import { CatalogSidebar } from "./components/CatalogSidebar";
+import { BrandMark } from "./components/BrandMark";
 import { ErrorState, LoadingState } from "./components/Common";
 import { OverviewTab } from "./components/OverviewTab";
 import { PartitionsTab } from "./components/PartitionsTab";
@@ -149,7 +150,7 @@ export default function App() {
   if (!catalogs && !catalogListError) {
     return (
       <main className="boot-screen">
-        <div className="boot-logo">IV</div>
+        <BrandMark className="boot-logo" />
         <LoadingState label="Reading catalog configuration" />
       </main>
     );
@@ -158,7 +159,7 @@ export default function App() {
   if (!catalogs && catalogListError) {
     return (
       <main className="boot-screen">
-        <div className="boot-logo">IV</div>
+        <BrandMark className="boot-logo" />
         <ErrorState
           title="Configuration unavailable"
           message={catalogListError}
@@ -173,7 +174,7 @@ export default function App() {
   if (!catalog && catalogError) {
     return (
       <main className="boot-screen">
-        <div className="boot-logo">IV</div>
+        <BrandMark className="boot-logo" />
         <ErrorState title="Catalog unavailable" message={catalogError} onRetry={loadCatalog} />
         <button className="button boot-settings" onClick={() => setManagerOpen(true)}>
           <Settings size={15} />
@@ -197,7 +198,7 @@ export default function App() {
   if (!catalog) {
     return (
       <main className="boot-screen">
-        <div className="boot-logo">IV</div>
+        <BrandMark className="boot-logo" />
         <LoadingState label="Connecting to catalog" />
       </main>
     );

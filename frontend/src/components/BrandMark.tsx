@@ -1,12 +1,11 @@
-export function BrandMark() {
+import logoUrl from "../assets/icevue-logo.svg";
+
+export function BrandMark({ className = "" }: { className?: string }) {
   return (
-    <div className="brand-mark" aria-hidden="true">
-      <span className="brand-mark__north" />
-      <span className="brand-mark__east" />
-      <span className="brand-mark__south" />
-      <span className="brand-mark__west" />
-      <span className="brand-mark__core" />
-    </div>
+    <img
+      className={`brand-logo ${className}`.trim()}
+      src={logoUrl}
+      alt="Icevue"
+    />
   );
 }
-

@@ -91,72 +91,14 @@ code,
 
 .brand {
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 11px;
 }
 
-.brand strong {
+.brand-logo {
   display: block;
-  font-size: 16px;
-  line-height: 20px;
-}
-
-.brand span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  text-transform: uppercase;
-}
-
-.brand-mark {
-  position: relative;
-  width: 29px;
-  height: 29px;
-  transform: rotate(45deg);
-}
-
-.brand-mark span {
-  position: absolute;
-  display: block;
-  background: var(--cyan);
-}
-
-.brand-mark__north,
-.brand-mark__south {
-  left: 7px;
-  width: 15px;
-  height: 3px;
-}
-
-.brand-mark__north {
-  top: 2px;
-}
-
-.brand-mark__south {
-  bottom: 2px;
-}
-
-.brand-mark__east,
-.brand-mark__west {
-  top: 7px;
-  width: 3px;
-  height: 15px;
-}
-
-.brand-mark__east {
-  right: 2px;
-}
-
-.brand-mark__west {
-  left: 2px;
-}
-
-.brand-mark__core {
-  inset: 9px;
-  border: 1px solid var(--cyan);
-  background: transparent !important;
+  width: 184px;
+  height: auto;
 }
 
 .icon-button {
@@ -1740,16 +1682,13 @@ code,
   background-size: 40px 40px;
 }
 
+.boot-screen > .center-state {
+  min-height: auto;
+}
+
 .boot-logo {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  margin-bottom: -65px;
-  place-items: center;
-  border: 1px solid #2f6b6e;
-  color: var(--cyan);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 15px;
+  width: min(320px, calc(100vw - 48px));
+  margin-bottom: 22px;
 }
 
 .spin {

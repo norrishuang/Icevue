@@ -15,6 +15,16 @@ try {
 
   await desktop.goto(baseUrl, { waitUntil: "networkidle" });
   await desktop.getByRole("heading", { name: "events" }).waitFor();
+  const logoLoaded = await desktop.locator(".brand-logo").evaluate(
+    (image) => image.complete && image.naturalWidth > 0,
+  );
+  if (!logoLoaded) throw new Error("Icevue logo failed to load");
+  if (screenshotDir) {
+    await desktop.screenshot({
+      path: `${screenshotDir}/screenshot.png`,
+      fullPage: false,
+    });
+  }
 
   await desktop.getByTitle("Catalog settings").click();
   await desktop.getByRole("dialog", { name: "Catalog connections" }).waitFor();
@@ -60,6 +70,7 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto(baseUrl, { waitUntil: "networkidle" });
+  await mobile.getByRole("heading", { name: "events" }).waitFor();
   await mobile.getByTitle("Open catalog").first().click();
   await mobile.getByRole("navigation", { name: "Catalog tables" }).waitFor();
   await mobile.getByRole("button", { name: /orders/ }).first().click();
