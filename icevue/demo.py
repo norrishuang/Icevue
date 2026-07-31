@@ -121,6 +121,11 @@ class DemoCatalogService:
             if is_events
             else []
         )
+        added_data_files = (24, 8, 26)
+        added_records = (1_420_000, 0, 1_588_000)
+        total_data_files = (648, 599, 625)
+        total_records = (84_392_821, 84_392_821, 85_980_821)
+        total_file_sizes = (14_683_920_144, 14_120_640_000, 14_339_060_000)
         snapshots = [
             SnapshotInfo(
                 snapshot_id=913740415582630 + index,
@@ -128,17 +133,25 @@ class DemoCatalogService:
                 sequence_number=122 + index,
                 timestamp_ms=now_ms - (2 - index) * 86_400_000,
                 timestamp=_iso(now_ms - (2 - index) * 86_400_000),
-                operation="append" if index != 1 else "overwrite",
+                operation="append" if index != 1 else "replace",
                 manifest_list=(
                     f"s3://warehouse/{namespace.replace('.', '/')}/{name}/metadata/"
                     f"snap-{913740415582630 + index}.avro"
                 ),
                 summary={
-                    "added-data-files": str(24 + index),
-                    "added-records": str(1_420_000 + index * 84_000),
-                    "total-data-files": str(648 + index * 24),
-                    "total-records": str(84_392_821 + index * 1_420_000),
-                    "total-files-size": str(14_683_920_144 + index * 218_420_000),
+                    "added-data-files": str(added_data_files[index]),
+                    "added-records": str(added_records[index]),
+                    **(
+                        {
+                            "deleted-data-files": "57",
+                            "deleted-records": "0",
+                        }
+                        if index == 1
+                        else {}
+                    ),
+                    "total-data-files": str(total_data_files[index]),
+                    "total-records": str(total_records[index]),
+                    "total-files-size": str(total_file_sizes[index]),
                 },
                 current=index == 2,
             )

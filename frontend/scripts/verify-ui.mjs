@@ -52,7 +52,7 @@ try {
   const expectedViews = [
     ["Schema", "event_id"],
     ["Partitions", "90 partitions"],
-    ["Snapshots", "Current"],
+    ["Snapshots", "57 → 8"],
     ["Properties", "write.parquet.compression-codec"],
     ["Overview", "Table identity"],
   ];
