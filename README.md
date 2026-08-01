@@ -120,6 +120,13 @@ See [Deployment](docs/DEPLOYMENT.md) for authentication examples and
 production guidance. See [Architecture](docs/ARCHITECTURE.md) for the API,
 security boundary, and metadata behavior.
 
+## Contributing
+
+Bug reports, pull requests, documentation improvements, Catalog compatibility
+findings, and early-stage ideas are welcome. See
+[Contributing](CONTRIBUTING.md) for development setup, project principles, and
+submission guidance.
+
 ## Development
 
 Requirements:
