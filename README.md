@@ -158,6 +158,33 @@ Run checks:
 cd frontend && npm run build
 ```
 
+## Current limitations
+
+- **Iceberg v3 support is partial.** Icevue currently uses PyIceberg
+  `0.9-0.10`. PyIceberg can read some v3 metadata and types, but it does not
+  yet provide complete Iceberg v3 support.
+- **The Iceberg `variant` type is not supported by PyIceberg.** A table whose
+  schema contains a `variant` column cannot currently be loaded in the table
+  detail view. Upgrading to PyIceberg `0.11.1` alone does not remove this
+  limitation.
+- **Partition pagination is applied after inspection.** Icevue currently reads
+  the complete result of `table.inspect.partitions()` before filtering and
+  paginating it. Tables with very large manifest or partition counts may take
+  longer to open and require more memory.
+- **Icevue does not query table records.** There is no SQL execution, data
+  preview, or row-level inspection.
+- **Authentication is not built in.** Production deployments should place
+  Icevue behind an authenticated HTTPS reverse proxy or ingress controller.
+- **Catalog implementations can differ.** Icevue targets the Iceberg REST
+  Catalog protocol and includes specific handling for AWS Glue Data Catalog
+  and Amazon S3 Tables, but other implementations may expose unsupported
+  extensions or behavior.
+
+For upstream progress on v3 and `variant` support, follow
+[PyIceberg issue #1551](https://github.com/apache/iceberg-python/issues/1551)
+and
+[PyIceberg issue #1819](https://github.com/apache/iceberg-python/issues/1819).
+
 ## Scope
 
 Icevue never modifies Iceberg catalogs, tables, snapshots, properties,
