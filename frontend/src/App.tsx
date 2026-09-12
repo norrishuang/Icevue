@@ -38,6 +38,32 @@ const tabs = [
   { id: "properties" as const, label: "Properties", icon: SlidersHorizontal },
 ];
 
+type Theme = "light" | "dark";
+
+function useTheme(): { theme: Theme; toggleTheme: () => void } {
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const saved = window.localStorage.getItem("icevue.theme");
+      return saved === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      window.localStorage.setItem("icevue.theme", theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }, []);
+
+  return { theme, toggleTheme };
+}
+
 function firstTable(catalog: CatalogTree): TableRef | null {
   for (const namespace of catalog.namespaces) {
     if (namespace.tables[0]) return namespace.tables[0];
@@ -46,6 +72,7 @@ function firstTable(catalog: CatalogTree): TableRef | null {
 }
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const [catalogs, setCatalogs] = useState<CatalogCollection | null>(null);
   const [activeCatalogId, setActiveCatalogId] = useState("");
   const [catalog, setCatalog] = useState<CatalogTree | null>(null);
@@ -213,10 +240,12 @@ export default function App() {
         selected={selected}
         open={sidebarOpen}
         refreshing={refreshing}
+        theme={theme}
         onClose={() => setSidebarOpen(false)}
         onRefresh={loadCatalog}
         onCatalogChange={activateCatalog}
         onManageCatalogs={() => setManagerOpen(true)}
+        onThemeToggle={toggleTheme}
         onSelect={(next) => {
           setSelected(next);
           setActiveTab("overview");

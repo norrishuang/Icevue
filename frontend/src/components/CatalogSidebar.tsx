@@ -3,10 +3,12 @@ import {
   ChevronDown,
   ChevronRight,
   Database,
+  Moon,
   PanelLeftClose,
   RefreshCw,
   Search,
   Settings,
+  Sun,
   Table2,
   X,
 } from "lucide-react";
@@ -20,11 +22,13 @@ interface CatalogSidebarProps {
   selected: TableRef | null;
   open: boolean;
   refreshing: boolean;
+  theme: "light" | "dark";
   onSelect: (table: TableRef) => void;
   onClose: () => void;
   onRefresh: () => void;
   onCatalogChange: (catalogId: string) => void;
   onManageCatalogs: () => void;
+  onThemeToggle: () => void;
 }
 
 function sameTable(left: TableRef | null, right: TableRef): boolean {
@@ -38,11 +42,13 @@ export function CatalogSidebar({
   selected,
   open,
   refreshing,
+  theme,
   onSelect,
   onClose,
   onRefresh,
   onCatalogChange,
   onManageCatalogs,
+  onThemeToggle,
 }: CatalogSidebarProps) {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -80,6 +86,13 @@ export function CatalogSidebar({
           <div className="brand">
             <BrandMark />
           </div>
+          <button
+            className="icon-button"
+            onClick={onThemeToggle}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
           <button className="icon-button sidebar__close" onClick={onClose} title="Close catalog">
             <PanelLeftClose size={18} />
           </button>
