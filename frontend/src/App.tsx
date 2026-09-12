@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Braces,
   Camera,
@@ -21,6 +21,7 @@ import { PartitionsTab } from "./components/PartitionsTab";
 import { PropertiesTab } from "./components/PropertiesTab";
 import { SchemaTab } from "./components/SchemaTab";
 import { SnapshotsTab } from "./components/SnapshotsTab";
+import { useTheme } from "./hooks/useTheme";
 import { formatDate } from "./format";
 import type {
   CatalogCollection,
@@ -37,32 +38,6 @@ const tabs = [
   { id: "snapshots" as const, label: "Snapshots", icon: Camera },
   { id: "properties" as const, label: "Properties", icon: SlidersHorizontal },
 ];
-
-type Theme = "light" | "dark";
-
-function useTheme(): { theme: Theme; toggleTheme: () => void } {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const saved = window.localStorage.getItem("icevue.theme");
-      return saved === "dark" ? "dark" : "light";
-    } catch {
-      return "light";
-    }
-  });
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try {
-      window.localStorage.setItem("icevue.theme", theme);
-    } catch {}
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
-  }, []);
-
-  return { theme, toggleTheme };
-}
 
 function firstTable(catalog: CatalogTree): TableRef | null {
   for (const namespace of catalog.namespaces) {
