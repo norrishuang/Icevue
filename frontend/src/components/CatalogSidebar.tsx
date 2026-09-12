@@ -5,6 +5,7 @@ import {
   Database,
   Moon,
   PanelLeftClose,
+  Plus,
   RefreshCw,
   Search,
   Settings,
@@ -20,10 +21,13 @@ interface CatalogSidebarProps {
   catalogs: CatalogCollection;
   activeCatalogId: string;
   selected: TableRef | null;
+  selectedNamespace: string | null;
   open: boolean;
   refreshing: boolean;
   theme: "light" | "dark";
   onSelect: (table: TableRef) => void;
+  onSelectNamespace: (namespace: string) => void;
+  onCreateNamespace: () => void;
   onClose: () => void;
   onRefresh: () => void;
   onCatalogChange: (catalogId: string) => void;
@@ -40,10 +44,13 @@ export function CatalogSidebar({
   catalogs,
   activeCatalogId,
   selected,
+  selectedNamespace,
   open,
   refreshing,
   theme,
   onSelect,
+  onSelectNamespace,
+  onCreateNamespace,
   onClose,
   onRefresh,
   onCatalogChange,
@@ -148,31 +155,52 @@ export function CatalogSidebar({
           )}
         </div>
 
-        <div className="tree-label">
+        <div className=”tree-label”>
           <span>Namespaces</span>
           <span>{catalog.namespaces.length}</span>
+          <button
+            className=”icon-button”
+            onClick={onCreateNamespace}
+            title=”New namespace”
+            style={{ marginLeft: “auto” }}
+          >
+            <Plus size={13} />
+          </button>
         </div>
 
-        <nav className="catalog-tree" aria-label="Catalog tables">
+        <nav className=”catalog-tree” aria-label=”Catalog tables”>
           {namespaces.map((namespace) => {
             const isCollapsed = collapsed.has(namespace.namespace);
+            const isNsActive = selectedNamespace === namespace.namespace;
             return (
-              <section className="namespace" key={namespace.namespace}>
-                <button
-                  className="namespace__trigger"
-                  onClick={() => toggleNamespace(namespace.namespace)}
-                >
-                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                  <Database size={14} />
-                  <span title={namespace.namespace}>{namespace.namespace}</span>
-                  <small>{namespace.tables.length}</small>
-                </button>
+              <section className=”namespace” key={namespace.namespace}>
+                <div className=”namespace__trigger”>
+                  <button
+                    className=”namespace__chevron”
+                    onClick={() => toggleNamespace(namespace.namespace)}
+                    aria-label={isCollapsed ? “Expand” : “Collapse”}
+                  >
+                    {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  <button
+                    className={`namespace__name ${isNsActive ? “namespace__name--active” : “”}`}
+                    onClick={() => {
+                      onSelectNamespace(namespace.namespace);
+                      onClose();
+                    }}
+                    title={namespace.namespace}
+                  >
+                    <Database size={14} />
+                    <span>{namespace.namespace}</span>
+                    <small>{namespace.tables.length}</small>
+                  </button>
+                </div>
                 {!isCollapsed && (
-                  <div className="namespace__tables">
+                  <div className=”namespace__tables”>
                     {namespace.tables.map((table) => (
                       <button
                         key={`${table.namespace}.${table.name}`}
-                        className={`table-link ${sameTable(selected, table) ? "table-link--active" : ""}`}
+                        className={`table-link ${sameTable(selected, table) ? “table-link--active” : “”}`}
                         onClick={() => {
                           onSelect(table);
                           onClose();
@@ -183,7 +211,7 @@ export function CatalogSidebar({
                       </button>
                     ))}
                     {namespace.tables.length === 0 && (
-                      <span className="namespace__empty">No matching tables</span>
+                      <span className=”namespace__empty”>No matching tables</span>
                     )}
                   </div>
                 )}
@@ -191,7 +219,7 @@ export function CatalogSidebar({
             );
           })}
           {namespaces.length === 0 && (
-            <div className="empty-filter">
+            <div className=”empty-filter”>
               <Search size={18} />
               <span>No tables match “{query}”</span>
             </div>

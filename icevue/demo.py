@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from icevue.errors import WriteNotSupportedError
 from icevue.models import (
     CatalogStatus,
     CatalogTree,
+    NamespaceDetail,
     NamespaceNode,
     PartitionField,
     PartitionPage,
@@ -17,6 +19,7 @@ from icevue.models import (
     SortField,
     SortOrder,
     TableDetail,
+    TableInput,
     TableRef,
 )
 
@@ -239,3 +242,22 @@ class DemoCatalogService:
             total=len(rows),
             has_more=start + page_size < len(rows),
         )
+
+    def get_namespace(self, namespace: str) -> NamespaceDetail:
+        demo_props: dict[str, dict[str, str]] = {
+            "analytics": {"owner": "data-platform", "tier": "gold"},
+            "commerce": {"owner": "commerce-team", "tier": "silver"},
+            "commerce.raw": {"owner": "commerce-team", "tier": "bronze"},
+        }
+        return NamespaceDetail(
+            namespace=namespace,
+            properties=demo_props.get(namespace, {}),
+        )
+
+    def create_namespace(self, namespace: str, properties: dict[str, str]) -> NamespaceDetail:
+        del namespace, properties
+        raise WriteNotSupportedError("The demo catalog is read-only")
+
+    def create_table(self, value: TableInput) -> TableDetail:
+        del value
+        raise WriteNotSupportedError("The demo catalog is read-only")

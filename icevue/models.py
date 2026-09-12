@@ -202,3 +202,29 @@ class PartitionPage(BaseModel):
     page_size: int
     total: int
     has_more: bool
+
+
+class NamespaceDetail(BaseModel):
+    namespace: str
+    properties: dict[str, str] = Field(default_factory=dict)
+
+
+class NamespaceInput(BaseModel):
+    namespace: str = Field(min_length=1, max_length=200)
+    properties: dict[str, str] = Field(default_factory=dict)
+
+
+class SchemaFieldInput(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    type: str = Field(min_length=1, max_length=200)
+    required: bool = False
+    doc: str | None = None
+
+
+class TableInput(BaseModel):
+    namespace: str = Field(min_length=1, max_length=200)
+    name: str = Field(min_length=1, max_length=200)
+    fields: list[SchemaFieldInput] = Field(min_length=1)
+    partition_by: list[str] = Field(default_factory=list)
+    location: str | None = None
+    properties: dict[str, str] = Field(default_factory=dict)

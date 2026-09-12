@@ -4,8 +4,11 @@ import type {
   CatalogInput,
   CatalogTestResult,
   CatalogTree,
+  NamespaceDetail,
+  NamespaceInput,
   PartitionPage,
   TableDetail,
+  TableInput,
   TableRef,
 } from "./types";
 
@@ -104,6 +107,37 @@ export function getTable(
 ): Promise<TableDetail> {
   return request<TableDetail>(`/api/v1/table?${tableQuery(catalogId, table)}`, {
     signal,
+  });
+}
+
+export function getNamespace(
+  catalogId: string,
+  namespace: string,
+  signal?: AbortSignal,
+): Promise<NamespaceDetail> {
+  const params = new URLSearchParams({ catalog_id: catalogId, namespace });
+  return request<NamespaceDetail>(`/api/v1/namespace?${params}`, { signal });
+}
+
+export function createNamespace(
+  catalogId: string,
+  value: NamespaceInput,
+): Promise<NamespaceDetail> {
+  const params = new URLSearchParams({ catalog_id: catalogId });
+  return request<NamespaceDetail>(`/api/v1/namespace?${params}`, {
+    method: "POST",
+    body: value,
+  });
+}
+
+export function createTable(
+  catalogId: string,
+  value: TableInput,
+): Promise<TableDetail> {
+  const params = new URLSearchParams({ catalog_id: catalogId });
+  return request<TableDetail>(`/api/v1/table?${params}`, {
+    method: "POST",
+    body: value,
   });
 }
 

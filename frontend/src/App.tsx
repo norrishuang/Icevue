@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Braces,
   Camera,
@@ -11,11 +11,14 @@ import {
   SlidersHorizontal,
   Table2,
 } from "lucide-react";
-import { getCatalog, getCatalogs, getTable } from "./api";
+import { getCatalog, getCatalogs, getNamespace, getTable } from "./api";
 import { CatalogManager } from "./components/CatalogManager";
 import { CatalogSidebar } from "./components/CatalogSidebar";
 import { BrandMark } from "./components/BrandMark";
+import { CreateNamespaceModal } from "./components/CreateNamespaceModal";
+import { CreateTableModal } from "./components/CreateTableModal";
 import { ErrorState, LoadingState } from "./components/Common";
+import { NamespaceView } from "./components/NamespaceView";
 import { OverviewTab } from "./components/OverviewTab";
 import { PartitionsTab } from "./components/PartitionsTab";
 import { PropertiesTab } from "./components/PropertiesTab";
@@ -26,6 +29,7 @@ import { formatDate } from "./format";
 import type {
   CatalogCollection,
   CatalogTree,
+  NamespaceDetail,
   TabId,
   TableDetail,
   TableRef,
@@ -52,10 +56,15 @@ export default function App() {
   const [activeCatalogId, setActiveCatalogId] = useState("");
   const [catalog, setCatalog] = useState<CatalogTree | null>(null);
   const [selected, setSelected] = useState<TableRef | null>(null);
+  const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
   const [table, setTable] = useState<TableDetail | null>(null);
+  const [namespaceDetail, setNamespaceDetail] = useState<NamespaceDetail | null>(null);
+  const [namespaceError, setNamespaceError] = useState("");
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [createNamespaceOpen, setCreateNamespaceOpen] = useState(false);
+  const [createTableNamespace, setCreateTableNamespace] = useState<string | null>(null);
   const [catalogListError, setCatalogListError] = useState("");
   const [catalogError, setCatalogError] = useState("");
   const [tableError, setTableError] = useState("");
@@ -68,9 +77,12 @@ export default function App() {
     setActiveCatalogId(catalogId);
     setCatalog(null);
     setSelected(null);
+    setSelectedNamespace(null);
     setTable(null);
+    setNamespaceDetail(null);
     setCatalogError("");
     setTableError("");
+    setNamespaceError("");
     setActiveTab("overview");
   }, []);
 
@@ -103,7 +115,7 @@ export default function App() {
         reason instanceof Error ? reason.message : "Unable to load catalog configuration",
       );
     });
-  }, []); // Catalog configuration is explicitly refreshed after mutations.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadCatalog = useCallback(() => {
     setRefreshing(true);
@@ -116,6 +128,7 @@ export default function App() {
     const controller = new AbortController();
     setCatalog(null);
     setSelected(null);
+    setSelectedNamespace(null);
     setCatalogError("");
     getCatalog(activeCatalogId, controller.signal)
       .then((result) => {
@@ -143,6 +156,20 @@ export default function App() {
       });
     return () => controller.abort();
   }, [activeCatalogId, selected, tableReload]);
+
+  useEffect(() => {
+    if (!selectedNamespace || !activeCatalogId) return;
+    const controller = new AbortController();
+    setNamespaceDetail(null);
+    setNamespaceError("");
+    getNamespace(activeCatalogId, selectedNamespace, controller.signal)
+      .then(setNamespaceDetail)
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setNamespaceError(reason instanceof Error ? reason.message : "Unable to load namespace");
+      });
+    return () => controller.abort();
+  }, [activeCatalogId, selectedNamespace]);
 
   const currentSpec = useMemo(
     () => table?.partition_specs.find((spec) => spec.current),
@@ -206,6 +233,12 @@ export default function App() {
     );
   }
 
+  const breadcrumbView = selectedNamespace
+    ? { ns: selectedNamespace, name: null }
+    : selected
+      ? { ns: selected.namespace, name: selected.name }
+      : null;
+
   return (
     <div className="app-shell">
       <CatalogSidebar
@@ -213,6 +246,7 @@ export default function App() {
         catalogs={catalogs}
         activeCatalogId={activeCatalogId}
         selected={selected}
+        selectedNamespace={selectedNamespace}
         open={sidebarOpen}
         refreshing={refreshing}
         theme={theme}
@@ -223,8 +257,16 @@ export default function App() {
         onThemeToggle={toggleTheme}
         onSelect={(next) => {
           setSelected(next);
+          setSelectedNamespace(null);
+          setNamespaceDetail(null);
           setActiveTab("overview");
         }}
+        onSelectNamespace={(ns) => {
+          setSelectedNamespace(ns);
+          setSelected(null);
+          setTable(null);
+        }}
+        onCreateNamespace={() => setCreateNamespaceOpen(true)}
       />
       <main className="workspace">
         <header className="workspace-header">
@@ -236,30 +278,59 @@ export default function App() {
           </button>
           <div className="breadcrumb">
             <span>{catalog.catalog.name}</span>
-            {selected && (
+            {breadcrumbView && (
               <>
                 <i>/</i>
-                <span>{selected.namespace}</span>
-                <i>/</i>
-                <strong>{selected.name}</strong>
+                <span>{breadcrumbView.ns}</span>
+                {breadcrumbView.name && (
+                  <>
+                    <i>/</i>
+                    <strong>{breadcrumbView.name}</strong>
+                  </>
+                )}
               </>
             )}
           </div>
           <div className="read-only">
             <span />
-            Read only
+            {catalog.catalog.mode === "demo" ? "Demo" : "REST"}
           </div>
           <button
             className="icon-button"
-            onClick={() => setTableReload((value) => value + 1)}
-            disabled={!selected}
-            title="Refresh table"
+            onClick={() => {
+              if (selectedNamespace) {
+                setNamespaceDetail(null);
+                setNamespaceError("");
+              } else {
+                setTableReload((value) => value + 1);
+              }
+            }}
+            disabled={!selected && !selectedNamespace}
+            title={selectedNamespace ? "Refresh namespace" : "Refresh table"}
           >
             <RefreshCw size={16} />
           </button>
         </header>
 
-        {!selected ? (
+        {selectedNamespace ? (
+          namespaceError ? (
+            <ErrorState
+              title="Namespace unavailable"
+              message={namespaceError}
+              onRetry={() => {
+                setNamespaceDetail(null);
+                setNamespaceError("");
+              }}
+            />
+          ) : !namespaceDetail ? (
+            <LoadingState label={`Loading ${selectedNamespace}`} />
+          ) : (
+            <NamespaceView
+              detail={namespaceDetail}
+              onCreateTable={(ns) => setCreateTableNamespace(ns)}
+            />
+          )
+        ) : !selected ? (
           <ErrorState title="Catalog is empty" message="No Iceberg tables were found." />
         ) : tableError ? (
           <ErrorState
@@ -331,6 +402,7 @@ export default function App() {
           </>
         )}
       </main>
+
       <CatalogManager
         open={managerOpen}
         collection={catalogs}
@@ -342,6 +414,36 @@ export default function App() {
           }
         }}
       />
+
+      {createNamespaceOpen && (
+        <CreateNamespaceModal
+          catalogId={activeCatalogId}
+          onClose={() => setCreateNamespaceOpen(false)}
+          onCreated={(ns) => {
+            setCreateNamespaceOpen(false);
+            loadCatalog();
+            setSelectedNamespace(ns);
+            setSelected(null);
+            setTable(null);
+          }}
+        />
+      )}
+
+      {createTableNamespace && (
+        <CreateTableModal
+          catalogId={activeCatalogId}
+          namespace={createTableNamespace}
+          onClose={() => setCreateTableNamespace(null)}
+          onCreated={(ns, name) => {
+            setCreateTableNamespace(null);
+            loadCatalog();
+            setSelected({ namespace: ns, name });
+            setSelectedNamespace(null);
+            setNamespaceDetail(null);
+            setActiveTab("overview");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -12,3 +12,11 @@ class CatalogConnectionError(RuntimeError):
 class TableNotFoundError(RuntimeError):
     """The requested table does not exist."""
 
+
+class NamespaceNotFoundError(RuntimeError):
+    """The requested namespace does not exist."""
+
+
+class WriteNotSupportedError(RuntimeError):
+    """The catalog does not support write operations."""
+

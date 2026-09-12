@@ -11,15 +11,24 @@ from fastapi.staticfiles import StaticFiles
 from icevue import __version__
 from icevue.catalog_store import CatalogService, CatalogStore
 from icevue.config import Settings, get_settings
-from icevue.errors import CatalogConfigurationError, CatalogConnectionError, TableNotFoundError
+from icevue.errors import (
+    CatalogConfigurationError,
+    CatalogConnectionError,
+    NamespaceNotFoundError,
+    TableNotFoundError,
+    WriteNotSupportedError,
+)
 from icevue.models import (
     CatalogCollection,
     CatalogInput,
     CatalogTestResult,
     CatalogTree,
     CatalogView,
+    NamespaceDetail,
+    NamespaceInput,
     PartitionPage,
     TableDetail,
+    TableInput,
 )
 
 
@@ -50,6 +59,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def table_not_found(request: Request, exc: TableNotFoundError) -> JSONResponse:
         del request
         return JSONResponse(status_code=404, content={"detail": str(exc), "code": "not_found"})
+
+    @app.exception_handler(NamespaceNotFoundError)
+    async def namespace_not_found(request: Request, exc: NamespaceNotFoundError) -> JSONResponse:
+        del request
+        return JSONResponse(status_code=404, content={"detail": str(exc), "code": "not_found"})
+
+    @app.exception_handler(WriteNotSupportedError)
+    async def write_not_supported(request: Request, exc: WriteNotSupportedError) -> JSONResponse:
+        del request
+        return JSONResponse(status_code=405, content={"detail": str(exc), "code": "read_only"})
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -135,6 +154,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         catalog: Annotated[CatalogService, Depends(catalog_service)],
     ) -> TableDetail:
         return catalog.table(namespace, name)
+
+    @app.get("/api/v1/namespace", response_model=NamespaceDetail)
+    async def namespace_detail(
+        namespace: Annotated[str, Query(min_length=1)],
+        catalog: Annotated[CatalogService, Depends(catalog_service)],
+    ) -> NamespaceDetail:
+        return catalog.get_namespace(namespace)
+
+    @app.post(
+        "/api/v1/namespace",
+        response_model=NamespaceDetail,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_namespace(
+        value: NamespaceInput,
+        catalog: Annotated[CatalogService, Depends(catalog_service)],
+    ) -> NamespaceDetail:
+        return catalog.create_namespace(value.namespace, value.properties)
+
+    @app.post(
+        "/api/v1/table",
+        response_model=TableDetail,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_table(
+        value: TableInput,
+        catalog: Annotated[CatalogService, Depends(catalog_service)],
+    ) -> TableDetail:
+        return catalog.create_table(value)
 
     @app.get("/api/v1/partitions", response_model=PartitionPage)
     async def partitions(

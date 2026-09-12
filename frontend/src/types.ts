@@ -152,3 +152,29 @@ export interface PartitionPage {
 }
 
 export type TabId = "overview" | "schema" | "partitions" | "snapshots" | "properties";
+
+export interface NamespaceDetail {
+  namespace: string;
+  properties: Record<string, string>;
+}
+
+export interface NamespaceInput {
+  namespace: string;
+  properties: Record<string, string>;
+}
+
+export interface SchemaFieldInput {
+  name: string;
+  type: string;
+  required: boolean;
+  doc?: string | null;
+}
+
+export interface TableInput {
+  namespace: string;
+  name: string;
+  fields: SchemaFieldInput[];
+  partition_by: string[];
+  location?: string | null;
+  properties: Record<string, string>;
+}

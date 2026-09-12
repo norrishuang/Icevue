@@ -1,8 +1,9 @@
-"""Read-only PyIceberg catalog adapter."""
+"""PyIceberg catalog adapter — read and write operations."""
 
 from __future__ import annotations
 
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -18,13 +19,52 @@ from pyiceberg.exceptions import (
     NoSuchTableError,
     RESTError,
 )
+
+try:
+    from pyiceberg.exceptions import NamespaceAlreadyExistsError  # type: ignore[attr-defined]
+except ImportError:
+    NamespaceAlreadyExistsError = Exception  # type: ignore[assignment,misc]
+
+try:
+    from pyiceberg.exceptions import TableAlreadyExistsError  # type: ignore[attr-defined]
+except ImportError:
+    TableAlreadyExistsError = Exception  # type: ignore[assignment,misc]
+from pyiceberg.partitioning import (
+    PartitionField as IcebergPartitionField,
+    PartitionSpec as IcebergPartitionSpec,
+)
+from pyiceberg.schema import Schema
 from pyiceberg.table import Table
+from pyiceberg.transforms import IdentityTransform
+from pyiceberg.types import (
+    BinaryType,
+    BooleanType,
+    DateType,
+    DecimalType,
+    DoubleType,
+    FixedType,
+    FloatType,
+    IntegerType,
+    LongType,
+    NestedField,
+    StringType,
+    TimestampType,
+    TimestamptzType,
+    TimeType,
+    UUIDType,
+)
 
 from icevue.config import Settings
-from icevue.errors import CatalogConfigurationError, CatalogConnectionError, TableNotFoundError
+from icevue.errors import (
+    CatalogConfigurationError,
+    CatalogConnectionError,
+    NamespaceNotFoundError,
+    TableNotFoundError,
+)
 from icevue.models import (
     CatalogStatus,
     CatalogTree,
+    NamespaceDetail,
     NamespaceNode,
     PartitionField,
     PartitionPage,
@@ -35,8 +75,45 @@ from icevue.models import (
     SortField,
     SortOrder,
     TableDetail,
+    TableInput,
     TableRef,
 )
+
+_SIMPLE_TYPES: dict[str, Any] = {
+    "boolean": BooleanType(),
+    "bool": BooleanType(),
+    "int": IntegerType(),
+    "integer": IntegerType(),
+    "long": LongType(),
+    "bigint": LongType(),
+    "float": FloatType(),
+    "double": DoubleType(),
+    "date": DateType(),
+    "time": TimeType(),
+    "timestamp": TimestampType(),
+    "timestamptz": TimestamptzType(),
+    "timestamp_tz": TimestamptzType(),
+    "string": StringType(),
+    "varchar": StringType(),
+    "text": StringType(),
+    "uuid": UUIDType(),
+    "binary": BinaryType(),
+    "bytes": BinaryType(),
+}
+
+
+def _parse_iceberg_type(type_str: str) -> Any:
+    lower = type_str.lower().strip()
+    if lower in _SIMPLE_TYPES:
+        return _SIMPLE_TYPES[lower]
+    m = re.match(r"decimal\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", lower)
+    if m:
+        return DecimalType(int(m.group(1)), int(m.group(2)))
+    m = re.match(r"fixed\s*\(\s*(\d+)\s*\)", lower)
+    if m:
+        return FixedType(int(m.group(1)))
+    return StringType()
+
 
 _FLAT_NAMESPACE_SIGNING_NAMES = frozenset({"glue", "s3tables"})
 
@@ -374,3 +451,88 @@ class IcebergCatalogService:
             total=total,
             has_more=start + page_size < total,
         )
+
+    def get_namespace(self, namespace: str) -> NamespaceDetail:
+        ns_tuple = tuple(namespace.split("."))
+        try:
+            props = self.catalog.load_namespace_properties(ns_tuple)
+            return NamespaceDetail(
+                namespace=namespace,
+                properties={str(k): str(v) for k, v in props.items()},
+            )
+        except NoSuchNamespaceError as exc:
+            raise NamespaceNotFoundError(f"Namespace {namespace} was not found") from exc
+        except Exception as exc:
+            raise CatalogConnectionError(f"Unable to load namespace {namespace}: {exc}") from exc
+
+    def create_namespace(self, namespace: str, properties: dict[str, str]) -> NamespaceDetail:
+        ns_tuple = tuple(namespace.split("."))
+        try:
+            self.catalog.create_namespace(ns_tuple, properties=properties)
+        except NamespaceAlreadyExistsError as exc:
+            raise CatalogConnectionError(f"Namespace '{namespace}' already exists") from exc
+        except Exception as exc:
+            raise CatalogConnectionError(f"Unable to create namespace {namespace}: {exc}") from exc
+        try:
+            actual = self.catalog.load_namespace_properties(ns_tuple)
+            return NamespaceDetail(
+                namespace=namespace,
+                properties={str(k): str(v) for k, v in actual.items()},
+            )
+        except Exception:
+            return NamespaceDetail(namespace=namespace, properties=properties)
+
+    def create_table(self, value: TableInput) -> TableDetail:
+        nested_fields = []
+        for field_id, field_input in enumerate(value.fields, start=1):
+            field_type = _parse_iceberg_type(field_input.type)
+            nested_fields.append(
+                NestedField(
+                    field_id=field_id,
+                    name=field_input.name,
+                    field_type=field_type,
+                    required=field_input.required,
+                    doc=field_input.doc,
+                )
+            )
+        schema = Schema(*nested_fields)
+
+        partition_spec = None
+        if value.partition_by:
+            name_to_id = {f.name: f.field_id for f in nested_fields}
+            partition_fields = []
+            for partition_id, pfield_name in enumerate(value.partition_by, start=1000):
+                source_id = name_to_id.get(pfield_name)
+                if source_id is None:
+                    raise CatalogConnectionError(
+                        f"Partition field '{pfield_name}' does not exist in schema"
+                    )
+                partition_fields.append(
+                    IcebergPartitionField(
+                        source_id=source_id,
+                        field_id=partition_id,
+                        name=pfield_name,
+                        transform=IdentityTransform(),
+                    )
+                )
+            partition_spec = IcebergPartitionSpec(fields=tuple(partition_fields))
+
+        identifier = (*value.namespace.split("."), value.name)
+        kwargs: dict[str, Any] = {"schema": schema, "properties": value.properties}
+        if value.location:
+            kwargs["location"] = value.location
+        if partition_spec is not None:
+            kwargs["partition_spec"] = partition_spec
+
+        try:
+            self.catalog.create_table(identifier, **kwargs)
+        except TableAlreadyExistsError as exc:
+            raise CatalogConnectionError(
+                f"Table '{value.namespace}.{value.name}' already exists"
+            ) from exc
+        except Exception as exc:
+            raise CatalogConnectionError(
+                f"Unable to create table {value.namespace}.{value.name}: {exc}"
+            ) from exc
+
+        return self.table(value.namespace, value.name)
