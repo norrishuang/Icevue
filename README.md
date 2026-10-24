@@ -40,6 +40,11 @@ The first release provides:
 - Current and historical schemas
 - Partition specs and a filterable, paginated partition list
 - Snapshot history and summary statistics
+- Snapshot trend charts for total records and total data files, with
+  hover, tap, and keyboard inspection. Totals come from retained snapshot
+  summaries, including snapshots on branches and tags; record totals count
+  rows in data files and may include rows removed by delete files. Missing
+  or invalid totals are shown as gaps rather than zero.
 - Sort orders, branches, tags, and table properties
 - A read-only FastAPI backend with OpenAPI documentation
 - A built-in demo catalog for evaluation
