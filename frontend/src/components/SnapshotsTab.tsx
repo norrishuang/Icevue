@@ -31,7 +31,16 @@ export function SnapshotsTab({ table }: { table: TableDetail }) {
       <SnapshotTrends snapshots={table.snapshots} />
       <div className="snapshot-history">
         {table.snapshots.map((snapshot) => (
-          <article className={`snapshot ${snapshot.current ? "snapshot--current" : ""}`} key={snapshot.snapshot_id}>
+          <article
+            className={[
+              "snapshot",
+              snapshot.current && "snapshot--current",
+              snapshot.operation === "replace" && "snapshot--replace",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            key={snapshot.snapshot_id}
+          >
             <div className="snapshot__rail">
               <span><GitCommitHorizontal size={15} /></span>
             </div>

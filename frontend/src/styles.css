@@ -1127,6 +1127,12 @@ code,
   background: var(--surface);
 }
 
+/* Declared before .snapshot--current so current+replace keeps the current border. */
+.snapshot--replace .snapshot__body {
+  border-color: #1f4a4f;
+  background: #122c30;
+}
+
 .snapshot--current .snapshot__body {
   border-color: #2c5558;
 }
@@ -1150,6 +1156,10 @@ code,
 .snapshot__body > header strong {
   font-size: 11px;
   text-transform: capitalize;
+}
+
+.snapshot--replace .snapshot__body > header strong {
+  color: var(--cyan);
 }
 
 .snapshot__body time {
