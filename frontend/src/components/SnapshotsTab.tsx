@@ -2,6 +2,7 @@ import { Camera, GitCommitHorizontal } from "lucide-react";
 import { formatBytes, formatDate, formatNumber } from "../format";
 import type { TableDetail } from "../types";
 import { EmptyState } from "./Common";
+import { FileSizeChart } from "./FileSizeChart";
 import { SnapshotTrends } from "./SnapshotTrends";
 
 function rewriteFiles(
@@ -15,7 +16,7 @@ function rewriteFiles(
   return `${input} → ${output}`;
 }
 
-export function SnapshotsTab({ table }: { table: TableDetail }) {
+export function SnapshotsTab({ catalogId, table }: { catalogId: string; table: TableDetail }) {
   if (!table.snapshots.length) {
     return (
       <EmptyState
@@ -29,6 +30,7 @@ export function SnapshotsTab({ table }: { table: TableDetail }) {
   return (
     <div className="tab-content snapshot-list">
       <SnapshotTrends snapshots={table.snapshots} />
+      <FileSizeChart catalogId={catalogId} table={table} />
       <div className="snapshot-history">
         {table.snapshots.map((snapshot) => (
           <article

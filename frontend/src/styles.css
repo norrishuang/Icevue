@@ -1401,6 +1401,99 @@ code,
   line-height: 1.5;
 }
 
+.filesize {
+  margin-bottom: 20px;
+}
+
+.filesize-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 14px 4px;
+}
+
+.filesize-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+}
+
+.filesize-stats dt {
+  color: var(--text-muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.filesize-stats dd {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.segmented button {
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.segmented .segmented--active {
+  background: var(--cyan-muted);
+  color: var(--cyan);
+}
+
+.filesize-bar rect:not(.filesize-bar__hit) {
+  fill: var(--cyan);
+  fill-opacity: 0.75;
+}
+
+.filesize-bar--active rect:not(.filesize-bar__hit) {
+  fill-opacity: 1;
+}
+
+.filesize-bar__hit {
+  fill: transparent;
+}
+
+.filesize-bar--active .filesize-bar__hit {
+  fill: var(--surface-hover);
+}
+
+.filesize-target line {
+  stroke: var(--yellow);
+  stroke-dasharray: 3 3;
+}
+
+.filesize-target text {
+  fill: var(--yellow);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+}
+
+.filesize-error {
+  gap: 10px;
+  color: var(--red);
+}
+
 .property-list {
   border: 1px solid var(--border);
   border-radius: 6px;

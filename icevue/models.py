@@ -195,6 +195,31 @@ class TableDetail(BaseModel):
     refs: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
+class FileSizeBucket(BaseModel):
+    lower_bytes: int
+    upper_bytes: int | None = None
+    file_count: int = 0
+    total_bytes: int = 0
+    record_count: int = 0
+
+
+class FileSizeDistribution(BaseModel):
+    snapshot_id: int | None = None
+    data_file_count: int
+    total_bytes: int
+    total_records: int
+    min_bytes: int | None = None
+    median_bytes: int | None = None
+    mean_bytes: int | None = None
+    max_bytes: int | None = None
+    target_file_size_bytes: int
+    # "s3tables-compaction" | "table-property" | "default"
+    target_file_size_source: str = "default"
+    delete_file_count: int = 0
+    delete_file_bytes: int = 0
+    buckets: list[FileSizeBucket]
+
+
 class PartitionPage(BaseModel):
     rows: list[dict[str, Any]]
     columns: list[str]

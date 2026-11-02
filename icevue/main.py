@@ -18,6 +18,7 @@ from icevue.models import (
     CatalogTestResult,
     CatalogTree,
     CatalogView,
+    FileSizeDistribution,
     PartitionPage,
     TableDetail,
 )
@@ -146,6 +147,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         query: Annotated[str | None, Query(max_length=200)] = None,
     ) -> PartitionPage:
         return catalog.partitions(namespace, name, page, page_size, query)
+
+    @app.get("/api/v1/file-sizes", response_model=FileSizeDistribution)
+    async def file_sizes(
+        namespace: Annotated[str, Query(min_length=1)],
+        name: Annotated[str, Query(min_length=1)],
+        catalog: Annotated[CatalogService, Depends(catalog_service)],
+    ) -> FileSizeDistribution:
+        return catalog.file_sizes(namespace, name)
 
     static_dir = runtime_settings.static_dir
     assets_dir = static_dir / "assets"

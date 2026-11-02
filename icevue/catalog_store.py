@@ -41,6 +41,8 @@ class CatalogService(Protocol):
         query: str | None,
     ): ...
 
+    def file_sizes(self, namespace: str, name: str): ...
+
 
 class CatalogStore:
     """Persist catalog connections and cache their PyIceberg clients."""

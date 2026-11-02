@@ -41,7 +41,7 @@ function timeLabel(ms: number, spanMs: number): string {
 }
 
 /** Tracks an element's content width; a callback ref handles conditional mounting. */
-function useWidth<T extends HTMLElement>() {
+export function useWidth<T extends HTMLElement>() {
   const [element, setElement] = useState<T | null>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
