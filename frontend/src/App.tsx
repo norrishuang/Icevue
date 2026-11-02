@@ -321,7 +321,9 @@ export default function App() {
                   partitioned={Boolean(currentSpec?.fields.length)}
                 />
               )}
-              {activeTab === "snapshots" && <SnapshotsTab table={table} />}
+              {activeTab === "snapshots" && (
+                <SnapshotsTab catalogId={activeCatalogId} table={table} />
+              )}
               {activeTab === "properties" && <PropertiesTab table={table} />}
             </section>
           </>

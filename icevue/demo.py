@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import random
 from datetime import UTC, datetime
 
+from icevue.file_sizes import MIB, build_distribution, resolve_target_file_size
 from icevue.models import (
     CatalogStatus,
     CatalogTree,
+    FileSizeDistribution,
     NamespaceNode,
     PartitionField,
     PartitionPage,
@@ -238,4 +241,26 @@ class DemoCatalogService:
             page_size=page_size,
             total=len(rows),
             has_more=start + page_size < len(rows),
+        )
+
+    def file_sizes(self, namespace: str, name: str) -> FileSizeDistribution:
+        """Deterministic, production-shaped mix: mostly compacted files plus a small-file tail."""
+        detail = self.table(namespace, name)
+        rng = random.Random(f"{namespace}.{name}")
+        count = int(detail.snapshots[-1].summary["total-data-files"])
+        files = []
+        for index in range(count):
+            if index % 9 == 0:  # Recent streaming appends that have not been compacted yet.
+                size = int(rng.uniform(0.2, 12) * MIB)
+            else:
+                size = int(min(900, max(16, rng.lognormvariate(3.1, 0.35))) * MIB)
+            files.append((size, size // 170))
+        target, target_source = resolve_target_file_size(detail.properties)
+        return build_distribution(
+            files,
+            snapshot_id=detail.current_snapshot_id,
+            target_bytes=target,
+            target_source=target_source,
+            delete_file_count=3 if name in {"events", "order_events"} else 0,
+            delete_file_bytes=3 * 48_000 if name in {"events", "order_events"} else 0,
         )

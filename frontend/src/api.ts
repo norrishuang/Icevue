@@ -4,6 +4,7 @@ import type {
   CatalogInput,
   CatalogTestResult,
   CatalogTree,
+  FileSizeDistribution,
   PartitionPage,
   TableDetail,
   TableRef,
@@ -124,4 +125,14 @@ export function getPartitions(
   });
   if (query.trim()) params.set("query", query.trim());
   return request<PartitionPage>(`/api/v1/partitions?${params}`, { signal });
+}
+
+export function getFileSizes(
+  catalogId: string,
+  table: TableRef,
+  signal?: AbortSignal,
+): Promise<FileSizeDistribution> {
+  return request<FileSizeDistribution>(`/api/v1/file-sizes?${tableQuery(catalogId, table)}`, {
+    signal,
+  });
 }

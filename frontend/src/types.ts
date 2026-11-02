@@ -152,3 +152,27 @@ export interface PartitionPage {
 }
 
 export type TabId = "overview" | "schema" | "partitions" | "snapshots" | "properties";
+
+export interface FileSizeBucket {
+  lower_bytes: number;
+  upper_bytes: number | null;
+  file_count: number;
+  total_bytes: number;
+  record_count: number;
+}
+
+export interface FileSizeDistribution {
+  snapshot_id: number | null;
+  data_file_count: number;
+  total_bytes: number;
+  total_records: number;
+  min_bytes: number | null;
+  median_bytes: number | null;
+  mean_bytes: number | null;
+  max_bytes: number | null;
+  target_file_size_bytes: number;
+  target_file_size_source: "s3tables-compaction" | "table-property" | "default";
+  delete_file_count: number;
+  delete_file_bytes: number;
+  buckets: FileSizeBucket[];
+}

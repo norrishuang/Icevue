@@ -101,6 +101,42 @@ def test_partition_pagination_and_filtering() -> None:
     assert all(row["event_type"] == "purchase" for row in payload["rows"])
 
 
+def test_file_size_distribution_buckets_current_data_files() -> None:
+    response = request(
+        "/api/v1/file-sizes",
+        params={"namespace": "analytics", "name": "events"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data_file_count"] == 625
+    assert payload["target_file_size_bytes"] == 536870912
+    assert sum(bucket["file_count"] for bucket in payload["buckets"]) == 625
+    assert sum(bucket["total_bytes"] for bucket in payload["buckets"]) == payload["total_bytes"]
+    assert payload["buckets"][0]["lower_bytes"] == 0
+    assert payload["buckets"][-1]["upper_bytes"] is None
+    assert payload["min_bytes"] <= payload["median_bytes"] <= payload["max_bytes"]
+
+
+def test_build_distribution_bucket_edges_and_median() -> None:
+    from icevue.file_sizes import MIB, build_distribution
+
+    result = build_distribution(
+        [(MIB - 1, 1), (MIB, 2), (128 * MIB, 3), (2048 * MIB, 4)],
+        snapshot_id=1,
+        target_bytes=128 * MIB,
+    )
+
+    counts = [bucket.file_count for bucket in result.buckets]
+    assert counts == [1, 1, 0, 0, 0, 1, 0, 0, 1]
+    assert result.median_bytes == (MIB + 128 * MIB) // 2
+    assert result.total_records == 10
+
+    empty = build_distribution([], snapshot_id=None, target_bytes=MIB)
+    assert empty.data_file_count == 0
+    assert empty.median_bytes is None
+
+
 def test_partition_page_size_is_limited() -> None:
     response = request(
         "/api/v1/partitions",
@@ -340,3 +376,70 @@ def test_demo_catalog_connection_test() -> None:
         assert response.status_code == 200
         assert response.json()["connected"] is True
         assert response.json()["namespace_count"] == 3
+
+
+def test_resolve_target_file_size_precedence() -> None:
+    from icevue.file_sizes import MIB, resolve_target_file_size
+
+    prop = {"write.target-file-size-bytes": str(128 * MIB)}
+    assert resolve_target_file_size(prop, 256) == (256 * MIB, "s3tables-compaction")
+    assert resolve_target_file_size(prop, None) == (128 * MIB, "table-property")
+    assert resolve_target_file_size({}, None) == (512 * MIB, "default")
+    assert resolve_target_file_size({"write.target-file-size-bytes": "x"}) == (
+        512 * MIB,
+        "default",
+    )
+
+
+class S3TablesClient:
+    def __init__(self, response: dict[str, Any] | Exception):
+        self.response = response
+        self.calls: list[dict[str, Any]] = []
+
+    def get_table_maintenance_configuration(self, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append(kwargs)
+        if isinstance(self.response, Exception):
+            raise self.response
+        return self.response
+
+
+def _compaction(status: str, target_mb: int) -> dict[str, Any]:
+    return {
+        "configuration": {
+            "icebergCompaction": {
+                "status": status,
+                "settings": {"icebergCompaction": {"targetFileSizeMB": target_mb}},
+            }
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        (_compaction("enabled", 256), 256),
+        (_compaction("disabled", 256), None),
+        (RuntimeError("AccessDenied"), None),
+    ],
+)
+def test_s3tables_target_reads_managed_compaction(
+    monkeypatch: pytest.MonkeyPatch,
+    response: dict[str, Any] | Exception,
+    expected: int | None,
+) -> None:
+    client = S3TablesClient(response)
+    monkeypatch.setattr("icevue.catalog.load_catalog", lambda *args, **kwargs: object())
+    monkeypatch.setattr("icevue.catalog.boto3.client", lambda *args, **kwargs: client)
+    bucket = "arn:aws:s3tables:us-east-1:123456789012:bucket/demo"
+    settings = replace(
+        get_settings(),
+        demo_mode=False,
+        catalog_name="s3tables",
+        catalog_uri="https://s3tables.us-east-1.amazonaws.com/iceberg",
+        catalog_warehouse=bucket,
+        catalog_properties={"rest.signing-name": "s3tables"},
+    )
+    service = IcebergCatalogService(settings)
+
+    assert service._s3tables_target_mb("gamedb", "logs") == expected
+    assert client.calls == [{"tableBucketARN": bucket, "namespace": "gamedb", "name": "logs"}]

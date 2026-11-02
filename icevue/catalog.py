@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -18,13 +19,17 @@ from pyiceberg.exceptions import (
     NoSuchTableError,
     RESTError,
 )
+from pyiceberg.manifest import DataFileContent
 from pyiceberg.table import Table
+from pyiceberg.utils.concurrent import ExecutorFactory
 
 from icevue.config import Settings
 from icevue.errors import CatalogConfigurationError, CatalogConnectionError, TableNotFoundError
+from icevue.file_sizes import build_distribution, resolve_target_file_size
 from icevue.models import (
     CatalogStatus,
     CatalogTree,
+    FileSizeDistribution,
     NamespaceNode,
     PartitionField,
     PartitionPage,
@@ -37,6 +42,8 @@ from icevue.models import (
     TableDetail,
     TableRef,
 )
+
+logger = logging.getLogger(__name__)
 
 _FLAT_NAMESPACE_SIGNING_NAMES = frozenset({"glue", "s3tables"})
 
@@ -99,7 +106,41 @@ class IcebergCatalogService:
                 "glue",
                 region_name=properties.get("rest.signing-region"),
             )
+        self.s3tables_client = None
+        if self.signing_name == "s3tables" and settings.catalog_warehouse:
+            self.s3tables_client = boto3.client(
+                "s3tables",
+                region_name=properties.get("rest.signing-region"),
+            )
 
+    def _s3tables_target_mb(self, namespace: str, name: str) -> int | None:
+        """targetFileSizeMB of S3 Tables managed compaction, if enabled.
+
+        Best effort: a missing permission or API error falls back to the
+        Iceberg table property instead of failing the whole chart.
+        """
+        if self.s3tables_client is None:
+            return None
+        try:
+            response = self.s3tables_client.get_table_maintenance_configuration(
+                tableBucketARN=self.settings.catalog_warehouse,
+                namespace=namespace,
+                name=name,
+            )
+        except Exception:
+            logger.warning(
+                "Could not read S3 Tables maintenance config for %s.%s",
+                namespace,
+                name,
+                exc_info=True,
+            )
+            return None
+        compaction = (response.get("configuration") or {}).get("icebergCompaction") or {}
+        if compaction.get("status") != "enabled":
+            return None
+        settings = (compaction.get("settings") or {}).get("icebergCompaction") or {}
+        value = settings.get("targetFileSizeMB")
+        return int(value) if isinstance(value, int) and value > 0 else None
     @staticmethod
     def _is_missing_namespace_error(exc: Exception) -> bool:
         return isinstance(exc, NoSuchNamespaceError) or (
@@ -373,4 +414,51 @@ class IcebergCatalogService:
             page_size=page_size,
             total=total,
             has_more=start + page_size < total,
+        )
+
+    def file_sizes(self, namespace: str, name: str) -> FileSizeDistribution:
+        """Histogram of live data files in the current snapshot.
+
+        Reads only manifest entries (no column metrics), so cost scales with
+        manifest count rather than schema width.
+        """
+        table = self._load_table(namespace, name)
+        metadata = table.metadata
+        target, target_source = resolve_target_file_size(
+            dict(metadata.properties), self._s3tables_target_mb(namespace, name)
+        )
+        snapshot = metadata.current_snapshot()
+        if snapshot is None:
+            return build_distribution(
+                [], snapshot_id=None, target_bytes=target, target_source=target_source
+            )
+
+        io = table.io
+
+        def read(manifest):
+            data: list[tuple[int, int]] = []
+            deletes = [0, 0]
+            for entry in manifest.fetch_manifest_entry(io, discard_deleted=True):
+                data_file = entry.data_file
+                if data_file.content == DataFileContent.DATA:
+                    data.append((data_file.file_size_in_bytes, data_file.record_count))
+                else:
+                    deletes[0] += 1
+                    deletes[1] += data_file.file_size_in_bytes
+            return data, deletes
+
+        try:
+            results = list(ExecutorFactory.get_or_create().map(read, snapshot.manifests(io)))
+        except Exception as exc:
+            raise CatalogConnectionError(
+                f"Unable to read data files for {namespace}.{name}: {exc}"
+            ) from exc
+
+        return build_distribution(
+            (pair for data, _ in results for pair in data),
+            snapshot_id=snapshot.snapshot_id,
+            target_bytes=target,
+            target_source=target_source,
+            delete_file_count=sum(deletes[0] for _, deletes in results),
+            delete_file_bytes=sum(deletes[1] for _, deletes in results),
         )
